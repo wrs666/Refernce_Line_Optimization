@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<osm version='0.6' generator='JOSM'>
+  <bounds minlat='36.9033976' minlon='118.1656355' maxlat='36.904598' maxlon='118.1699645' origin='CGImap 0.7.5 (6487 thorn-03.openstreetmap.org)' />
+  <node id='-140724' action='modify' visible='true' lat='36.90413323038' lon='118.16632395593'>
+    <tag k='junction' v='yes' />
+  </node>
+  <node id='-140725' action='modify' visible='true' lat='36.90412015903' lon='118.16662310688'>
+    <tag k='highway' v='junction_point' />
+  </node>
+  <node id='-140726' action='modify' visible='true' lat='36.90411263536' lon='118.16680960437' />
+  <node id='-140727' action='modify' visible='true' lat='36.90390169125' lon='118.16630365671'>
+    <tag k='highway' v='junction_point' />
+  </node>
+  <node id='-140728' action='modify' visible='true' lat='36.90375212935' lon='118.1662878279' />
+  <node id='-140729' action='modify' visible='true' lat='36.90417245567' lon='118.16637513753' />
+  <node id='-140731' action='modify' visible='true' lat='36.90405690858' lon='118.16626862565' />
+  <node id='-140732' action='modify' visible='true' lat='36.90417186008' lon='118.16628650177' />
+  <node id='-140784' action='modify' visible='true' lat='36.90405333436' lon='118.16639357302' />
+  <way id='-112912' action='modify' visible='true'>
+    <nd ref='-140724' />
+    <nd ref='-140725' />
+    <tag k='in_junction' v='yes' />
+  </way>
+  <way id='-112913' action='modify' visible='true'>
+    <nd ref='-140725' />
+    <nd ref='-140726' />
+    <tag k='highway' v='residential' />
+  </way>
+  <way id='-112914' action='modify' visible='true'>
+    <nd ref='-140728' />
+    <nd ref='-140727' />
+    <tag k='highway' v='residential' />
+  </way>
+  <way id='-112915' action='modify' visible='true'>
+    <nd ref='-140727' />
+    <nd ref='-140724' />
+    <tag k='in_junction' v='yes' />
+  </way>
+  <way id='-112916' action='modify' visible='true'>
+    <nd ref='-140729' />
+    <nd ref='-140784' />
+    <nd ref='-140731' />
+    <nd ref='-140732' />
+    <nd ref='-140729' />
+    <tag k='landuse' v='yes' />
+  </way>
+</osm>

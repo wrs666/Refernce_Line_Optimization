@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<launch>
+<node pkg="osm_cartography" type="osm_server" name="osm_server"/>
+  <node pkg="rviz" type="rviz" name="rviz" args="-d $(find ref_line_generation)/map_data/ref.rviz" respawn ="true"/>
+  <node pkg="ref_line_generation" type="curve_optimization_node" name="curve_optimization_node" output="screen"/>
+</launch>
