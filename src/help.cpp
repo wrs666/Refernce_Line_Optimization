@@ -1,12 +1,10 @@
 #include "help.h"
 #include "ref_line_opt.h"
-#include <Eigen/Core>
-#include <Eigen/Dense>
 #include <cmath>
 
-using namespace Eigen;
-
 double sampling_interval = 2.0;
+// double threshold_for_extraction = 0.5;
+double interploration_margin = 0.1;
 
 std::vector<TrackPoint> spline_interploration(TrackPoint p1, TrackPoint p2, double point_margin){
   std::vector<TrackPoint> curve_points;
@@ -69,13 +67,13 @@ std::vector<TrackPoint> spline_interploration(TrackPoint p1, TrackPoint p2, doub
 
   while(s < s_distance)
   {
-    VectorXd s_power(6);
-    VectorXd coef_x(6);
-    VectorXd coef_y(6);
-    VectorXd coef_vx(6);
-    VectorXd coef_vy(6);
-    VectorXd coef_ax(6);
-    VectorXd coef_ay(6);
+    Eigen::VectorXd s_power(6);
+    Eigen::VectorXd coef_x(6);
+    Eigen::VectorXd coef_y(6);
+    Eigen::VectorXd coef_vx(6);
+    Eigen::VectorXd coef_vy(6);
+    Eigen::VectorXd coef_ax(6);
+    Eigen::VectorXd coef_ay(6);
       
     coef_x << a[0], a[1], a[2], a[3], a[4], a[5];
     coef_y << b[0], b[1], b[2], b[3], b[4], b[5];
@@ -116,6 +114,106 @@ std::vector<TrackPoint> spline_interploration(TrackPoint p1, TrackPoint p2, doub
   return curve_points;
 }
 
+// std::vector<Point> cubic_interploration(const std::vector<double>& x, const std::vector<double>& y, double point_margin){//toImprove : combine loop
+//   int n = x.size();
+//   int N = 8 * (x.size() - 1); 
+
+//   std::vector<double> s(n, 0);
+  
+//   Eigen::MatrixXd A(N, N);
+//   A.setZero();
+//   Eigen::MatrixXd X(N, 1);
+//   Eigen::MatrixXd B(N, 1);
+//   B.setZero();
+
+//   //fill B and s
+//   B(0, 0) = x.front();
+//   B(1, 0) = y.front();
+//   for(int i = 1; i < n - 1; i++){
+//     B(4 * i - 2, 0) = x.at(i);
+//     B(4 * i - 1, 0) = y.at(i);
+//     B(4 * i, 0) = x.at(i);
+//     B(4 * i + 1, 0) = y.at(i);
+//     s.at(i) = s.at(i - 1) + sqrt(std::pow(x.at(i) - x.at(i - 1), 2) + std::pow(y.at(i) - y.at(i - 1), 2));
+//   }
+//   B(4 * n - 6) = x.back();
+//   B(4 * n - 5) = y.back();
+//   s.back() = s.at(n - 2) + sqrt(std::pow(x.back() - x.at(n - 2), 2) + std::pow(y.back() - y.at(n - 2), 2));
+
+//   //fill A
+//   A(0, 0) = 1;
+//   A(1, 4) = 1;
+//   double x_start;
+//   double y_start;
+//   for(int i = 1; i < n - 1; i++){
+//     x_start = 4 * i - 2;
+//     y_start = 8 * (i - 1);
+//     for(int j = 0; j < 4; j++){
+//       A(x_start + j, y_start + j * 4) = 1;
+//       A(x_start + j, y_start + j * 4 + 1) = s.at(i);
+//       A(x_start + j, y_start + j * 4 + 2) = s.at(i) * s.at(i);
+//       A(x_start + j, y_start + j * 4 + 3) = s.at(i) * s.at(i) * s.at(i);
+//     }
+//   }
+//   A(4 * n - 6, 8 * (n - 2)) = 1;
+//   A(4 * n - 6, 8 * (n - 2) + 1) = s.back();
+//   A(4 * n - 6, 8 * (n - 2) + 2) = s.back() * s.back();
+//   A(4 * n - 6, 8 * (n - 2) + 3) = s.back() * s.back() * s.back();
+//   A(4 * n - 5, 8 * (n - 2) + 4) = 1;
+//   A(4 * n - 5, 8 * (n - 2) + 5) = s.back();
+//   A(4 * n - 5, 8 * (n - 2) + 6) = s.back() * s.back();
+//   A(4 * n - 5, 8 * (n - 2) + 7) = s.back() * s.back() * s.back();
+
+//   for(int i = 1; i < n - 1; i++){
+//     y_start = 8 * (i - 1);
+//     A(4 * n - 8 + 4 * i, y_start + 1) = -1;
+//     A(4 * n - 8 + 4 * i, y_start + 2) = -2 * s.at(i);
+//     A(4 * n - 8 + 4 * i, y_start + 3) = -3 * s.at(i) * s.at(i);
+//     A(4 * n - 8 + 4 * i, y_start + 9) = 1;
+//     A(4 * n - 8 + 4 * i, y_start + 10) = 2 * s.at(i);
+//     A(4 * n - 8 + 4 * i, y_start + 11) = 3 * s.at(i) * s.at(i);
+//     A(4 * n - 7 + 4 * i, y_start + 2) = -2;
+//     A(4 * n - 7 + 4 * i, y_start + 3) = -6 * s.at(i);
+//     A(4 * n - 7 + 4 * i, y_start + 10) = 2;
+//     A(4 * n - 7 + 4 * i, y_start + 11) = 6 * s.at(i);
+//     A(4 * n - 6 + 4 * i, y_start + 5) = -1;
+//     A(4 * n - 6 + 4 * i, y_start + 6) = -2 * s.at(i);
+//     A(4 * n - 6 + 4 * i, y_start + 7) = -3 * s.at(i) * s.at(i);
+//     A(4 * n - 6 + 4 * i, y_start + 13) = 1;
+//     A(4 * n - 6 + 4 * i, y_start + 14) = 2 * s.at(i);
+//     A(4 * n - 6 + 4 * i, y_start + 15) = 3 * s.at(i) * s.at(i);
+//     A(4 * n - 5 + 4 * i, y_start + 6) = -2;
+//     A(4 * n - 5 + 4 * i, y_start + 7) = -6 * s.at(i);
+//     A(4 * n - 5 + 4 * i, y_start + 14) = 2;
+//     A(4 * n - 5 + 4 * i, y_start + 15) = 6 * s.at(i);
+//   }
+//   A(8 * n - 12, 2) = 2;
+//   A(8 * n - 11, 6) = 2;
+//   A(8 * n - 10, 8 * n - 14) = 2;
+//   A(8 * n - 10, 8 * n - 13) = 6 * s.back();
+//   A(8 * n - 9, 8 * n - 10) = 2;
+//   A(8 * n - 9, 8 * n - 9) = 6 * s.back();
+
+//   X = A.llt().solve(B);
+
+//   //sampling
+//   std::vector<Point> sampling_points = {};
+//   double station = 0;
+//   int segment_index = 0;
+//   while(station < s.back()){
+//     while(station > s.at(segment_index + 1)){      
+//       segment_index++;
+//       if(segment_index == n - 1)
+//           break;
+//     }
+//     if(segment_index < n - 1){
+//       sampling_points.emplace_back(X(8 * segment_index, 0) * 1 + X(8 * segment_index + 1, 0) * station + X(8 * segment_index + 2, 0) * station * station + X(8 * segment_index + 3, 0) * station * station * station, X(8 * segment_index + 4, 0) * 1 + X(8 * segment_index + 5, 0) * station + X(8 * segment_index + 6, 0) * station * station + X(8 * segment_index + 7, 0) * station * station * station);
+//       station += point_margin;
+//     }
+//   }
+//   return sampling_points;
+// }
+
 void Junction::ref_lines_generation(const std::vector<Obstacle>& obs){
   for(const Interface& in : this->entries){
     TrackPoint start(in.second.p, in.first.geometry.heading, 0);
@@ -128,16 +226,14 @@ void Junction::ref_lines_generation(const std::vector<Obstacle>& obs){
       //   simple_ref_line.at(i) = init_ref_line.at(i);
       // }
       RefLineOPT ref_line_opt(init_ref_line, obs);
-      bool solved = ref_line_opt.solve();
-      solved = ref_line_opt.solve();
-      solved = ref_line_opt.solve();
-      solved = ref_line_opt.solve();
-      solved = ref_line_opt.solve();
-      solved = ref_line_opt.solve();
-      solved = ref_line_opt.solve();
-      if(solved){
-        this->optimized_ref_lines.push_back(ref_line_opt.getPoints());
-      }
+      std::vector<Point> init_key_points = ref_line_opt.getKeyPoints();
+      CubicSpline csp;
+      bool solved = ref_line_opt.solve(csp);
+      std::vector<Point> optimized_key_points = ref_line_opt.getKeyPoints();
+      // ref_line_opt.refreshKeyPoints(threshold_for_extraction);//extract key points
+      this->initial_key_points.push_back(init_key_points);
+      this->optimized_ref_keys.push_back(optimized_key_points);
+      this->optimized_ref_lines.push_back(csp.sampling(interploration_margin));
       this->ref_lines.push_back(init_ref_line);
     }
   }

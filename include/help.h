@@ -3,6 +3,7 @@
 
 #include <string>
 #include "base.h"
+#include <array>
 
 class props_find_key
 {
@@ -58,6 +59,14 @@ class points_find_keyvalue
 };
 
 std::vector<TrackPoint> spline_interploration(TrackPoint p1, TrackPoint p2, double point_margin);
+
+// struct CubicSpline{
+//   std::vector<std::array<double, 4>> a;
+//   std::vector<std::array<double, 4>> b;
+//   std::vector<double> s;
+// };
+
+// std::vector<Point> cubic_interploration(const std::vector<double>& x, const std::vector<double>& y);
 
 #endif
 

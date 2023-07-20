@@ -69,9 +69,11 @@ MapVis::MapVis(const VecMap& vec_map, ros::NodeHandle nh){
     obs_vis.markers.push_back(ob_vis);
   }
 
-  //fill ref_lines_vis
-  int ref_lines_num = 0;
+  
+  
   for(const Junction& junc : vec_map.junctions){
+    //fill ref_lines_vis
+    int ref_lines_num = 0;
     for(const ref_line& r : junc.ref_lines){
       ref_lines_num++;
       nav_msgs::Path ref_path;
@@ -86,27 +88,84 @@ MapVis::MapVis(const VecMap& vec_map, ros::NodeHandle nh){
       ref_lines_vis.push_back(ref_path);
     }
 
-    for(const std::vector<Point>& opti_ref : junc.optimized_ref_lines){
-      ref_lines_num++;
+    // fill initial key points
+    int init_key_sets_num = 0;
+    for(const std::vector<Point>& init_keys : junc.initial_key_points){
+      init_key_sets_num++;
+      std::cout<<"fill initial key points vis"<<std::endl;
+      visualization_msgs::Marker init_keys_vis;
+      init_keys_vis.header.frame_id = "world";
+      init_keys_vis.header.seq = ref_lines_num;
+      init_keys_vis.header.stamp = ros::Time::now();
+      init_keys_vis.ns = "init_keys";
+      init_keys_vis.id = ref_lines_num;
+      init_keys_vis.action = visualization_msgs::Marker::ADD;
+      init_keys_vis.pose.orientation.w = 1.0;
+      init_keys_vis.type = visualization_msgs::Marker::POINTS;
+      init_keys_vis.scale.x = 0.5;
+      init_keys_vis.scale.y = 0.5;
+
+      init_keys_vis.color.r = 0.0f;
+      init_keys_vis.color.g = 0.0f;
+      init_keys_vis.color.b = 0.0f;
+      init_keys_vis.color.a = 1.0;
+
+      for(const Point& p : init_keys)
+        init_keys_vis.points.push_back(getGeoPoint(p));
+      
+      this->initial_keys_vis.markers.push_back(init_keys_vis);
+    }
+
+    // fill optimized key points
+    int opti_key_sets_num = 0;
+    for(const std::vector<Point>& opti_keys : junc.optimized_ref_keys){
+      opti_key_sets_num++;
+      std::cout<<"fill optimized key points vis"<<std::endl;
+      visualization_msgs::Marker opti_keys_vis;
+      opti_keys_vis.header.frame_id = "world";
+      opti_keys_vis.header.seq = ref_lines_num;
+      opti_keys_vis.header.stamp = ros::Time::now();
+      opti_keys_vis.ns = "opti_keys";
+      opti_keys_vis.id = ref_lines_num;
+      opti_keys_vis.action = visualization_msgs::Marker::ADD;
+      opti_keys_vis.pose.orientation.w = 1.0;
+      opti_keys_vis.type = visualization_msgs::Marker::POINTS;
+      opti_keys_vis.scale.x = 0.5;
+      opti_keys_vis.scale.y = 0.5;
+
+      opti_keys_vis.color.r = 1.0f;
+      opti_keys_vis.color.g = 1.0f;
+      opti_keys_vis.color.b = 0.0f;
+      opti_keys_vis.color.a = 1.0;
+
+      for(const Point& p : opti_keys)
+        opti_keys_vis.points.push_back(getGeoPoint(p));
+      
+      this->optimized_keys_vis.markers.push_back(opti_keys_vis);
+    }
+
+    int opti_ref_lines_num = 0;
+    for(const std::vector<TrackPoint>& opti_ref : junc.optimized_ref_lines){
+      opti_ref_lines_num++;
       std::cout<<"fill optimized ref lines vis"<<std::endl;
       visualization_msgs::Marker opti_ref_vis;
       opti_ref_vis.header.frame_id = "world";
       opti_ref_vis.header.seq = ref_lines_num;
       opti_ref_vis.header.stamp = ros::Time::now();
-      opti_ref_vis.ns = "opti_ref";
+      opti_ref_vis.ns = "opti_refs";
       opti_ref_vis.id = ref_lines_num;
       opti_ref_vis.action = visualization_msgs::Marker::ADD;
       opti_ref_vis.pose.orientation.w = 1.0;
       opti_ref_vis.type = visualization_msgs::Marker::POINTS;
-      opti_ref_vis.scale.x = 0.5;
-      opti_ref_vis.scale.y = 0.5;
+      opti_ref_vis.scale.x = 0.1;
+      opti_ref_vis.scale.y = 0.1;
 
-      opti_ref_vis.color.r = 1.0f;
+      opti_ref_vis.color.r = 0.0f;
       opti_ref_vis.color.g = 1.0f;
       opti_ref_vis.color.b = 0.0f;
       opti_ref_vis.color.a = 1.0;
 
-      for(const Point& p : opti_ref)
+      for(const TrackPoint& p : opti_ref)
         opti_ref_vis.points.push_back(getGeoPoint(p));
       
       this->optimized_refs_vis.markers.push_back(opti_ref_vis);
@@ -118,6 +177,8 @@ MapVis::MapVis(const VecMap& vec_map, ros::NodeHandle nh){
   roads_vis_pub = nh.advertise<visualization_msgs::MarkerArray>("/roads_vis", 1);
   obs_vis_pub = nh.advertise<visualization_msgs::MarkerArray>("/obs_vis", 1);
   this->optimized_refs_vis_pub = nh.advertise<visualization_msgs::MarkerArray>("/optimized_reference_lines", 1);
+  this->optimized_keys_vis_pub = nh.advertise<visualization_msgs::MarkerArray>("/optimized_key_points", 1);
+  this->initial_keys_vis_pub = nh.advertise<visualization_msgs::MarkerArray>("/initial_key_points", 1);
   ref_lines_vis_pubs.resize(ref_lines_vis.size());
   for(int i = 0; i < ref_lines_vis_pubs.size(); i++)
     ref_lines_vis_pubs.at(i) = nh.advertise<nav_msgs::Path>("/ref_lines_vis" + std::to_string(i), 1);
@@ -127,6 +188,8 @@ void MapVis::show(){
   roads_vis_pub.publish(roads_vis);
   obs_vis_pub.publish(obs_vis);
   optimized_refs_vis_pub.publish(optimized_refs_vis);
+  optimized_keys_vis_pub.publish(optimized_keys_vis);
+  initial_keys_vis_pub.publish(initial_keys_vis);
   for(int i = 0; i < ref_lines_vis.size(); i++)
     ref_lines_vis_pubs.at(i).publish(ref_lines_vis.at(i));
 }

@@ -138,7 +138,10 @@ class Junction
     std::vector<Interface> entries;
     std::vector<Interface> exits;
     std::vector<ref_line> ref_lines;
-    std::vector<std::vector<Point>> optimized_ref_lines;
+    std::vector<std::vector<Point>> optimized_ref_keys;
+    std::vector<ref_line> optimized_ref_lines;
+
+    std::vector<std::vector<Point>> initial_key_points;
 
     Junction() {}
 
