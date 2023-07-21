@@ -6,7 +6,7 @@
 const double lateral_threshold = 2;
 const double longitude_threshold = 4;//TODO: extract params
 
-const double smooth_weight = 1e+5; //cost value about 10
+const double smooth_weight = 1e+4; //cost value about 10
 const double obs_weight = 10;
 const double deviation_weight = 10;
 const double sigmoid_scale = 20;
@@ -210,16 +210,25 @@ FG_eval::FG_eval(RefLineOPT *opt){
   key_theta.push_back(opt->init_heading.front());//key points is 2 more than obs key points
 
   int obs_size = opt->obs_.size();
+
+  bool selected = false, last_selected = false;
+  bool refresh = true;
+  bool increasing = false;
+  std::vector<KeyPoint> kps, last_kps;
+  double distance, last_distance = 1000;
+
   for(int i = 1; i < n - 1; i++){//for each way points
     double relative_x;
     double relative_y;
+    KeyPoint kp;
     double MIN_X = 100;//TODO: extract params 
     double MAX_X = -100;
     double MIN_Y = 100;
     double MAX_Y = -100;
-    bool selected = false;
-    std::vector<KeyPoint> kps;
-    KeyPoint kp;
+    distance = 1000;
+    selected = false;
+    refresh = false;
+    kps.clear();
     // double theta;
     // std::cout<<"For this point : "<<std::endl;
     for(int j = 0; j < obs_size; j++){//for each obstacle in this freesapce
@@ -249,8 +258,11 @@ FG_eval::FG_eval(RefLineOPT *opt){
         }
       }
 
+      distance = std::min(distance, std::pow((MIN_X + MAX_X) / (MAX_X - MIN_X + 3) , 2) + std::pow((MIN_Y + MAX_Y) / (MAX_Y - MIN_Y + 10), 2));
+
       if(std::pow((MIN_X + MAX_X) / (MAX_X - MIN_X + 4) , 2) < 1 && std::pow((MIN_Y + MAX_Y) / (MAX_Y - MIN_Y + 4), 2) < 1){
-        selected = true;
+          selected = true;
+          refresh = !last_selected;
       }
 
        if(std::pow((MIN_X + MAX_X) / (MAX_X - MIN_X + 6) , 2) < 1 && std::pow((MIN_Y + MAX_Y) / (MAX_Y - MIN_Y + 6), 2) < 1){
@@ -259,12 +271,46 @@ FG_eval::FG_eval(RefLineOPT *opt){
         
         
     }
+
     if(selected){
-      key_x.push_back(opt->points_x.at(i));
-      key_y.push_back(opt->points_y.at(i));
-      key_theta.push_back(opt->init_heading.at(i));
-      this->obs_key_points.push_back(kps);
+      std::cout<<i<<"th point, distance "<<distance<<std::endl;
+      if(refresh){//start
+        key_x.push_back(opt->points_x.at(i));
+        key_y.push_back(opt->points_y.at(i));
+        key_theta.push_back(opt->init_heading.at(i));
+        this->obs_key_points.push_back(kps);
+        std::cout<<i<<"th point added to key points "<<std::endl;
+      }
+      else{
+        if(increasing && distance < last_distance){//insert maximum
+          key_x.push_back(opt->points_x.at(i - 1));
+          key_y.push_back(opt->points_y.at(i - 1));
+          key_theta.push_back(opt->init_heading.at(i - 1));
+          this->obs_key_points.push_back(last_kps);
+          std::cout<<i - 1<<"th point added to key points "<<std::endl;
+        }
+        else if(!increasing && distance > last_distance){//insert minimum
+          key_x.push_back(opt->points_x.at(i - 1));
+          key_y.push_back(opt->points_y.at(i - 1));
+          key_theta.push_back(opt->init_heading.at(i - 1));
+          this->obs_key_points.push_back(last_kps);
+          std::cout<<i - 1<<"th point added to key points "<<std::endl;
+        }
+      }
     }
+    else if(last_selected){//insert end in one section
+      key_x.push_back(opt->points_x.at(i - 1));
+      key_y.push_back(opt->points_y.at(i - 1));
+      key_theta.push_back(opt->init_heading.at(i - 1));
+      this->obs_key_points.push_back(last_kps);
+      std::cout<<i - 1<<"th point added to key points "<<std::endl;
+    }
+
+    increasing = (distance > last_distance);
+
+    last_distance = distance;
+    last_kps = kps;
+    last_selected = selected;
   }
   key_x.push_back(opt->points_x.back());
   key_y.push_back(opt->points_y.back());
@@ -300,6 +346,7 @@ void FG_eval::operator()(ADvector& fg, const ADvector& x)
   distance.front() = CppAD::sqrt((x[1] - x[0]) * (x[1] - x[0]) + (x[N + 1] - x[N]) * (x[N + 1] - x[N]));
   adjacent_vec.front().at(0) = x[1] - x[0];
   adjacent_vec.front().at(1) = x[N + 1] - x[N];
+
         
   AD<double> smooth_cost = 0, obs_cost = 0, deviation_cost = 0;
   for(int index = 1; index < N - 1; index++){
@@ -307,36 +354,45 @@ void FG_eval::operator()(ADvector& fg, const ADvector& x)
     // AD<double> kappa_smooth_cost = (adjacent_theta.at(index) - adjacent_theta.at(index - 1)) * (adjacent_theta.at(index) - adjacent_theta.at(index - 1)) / ( (distance.at(index - 1) + distance.at(index)) * (distance.at(index - 1) + distance.at(index)));
     // std::cout<<"kappa smooth cost "<<kappa_smooth_cost<<std::endl;
     // smooth_cost += kappa_smooth_cost;
-    AD<double> current_smooth_cost = (adjacent_vec.at(index).at(0) - adjacent_vec.at(index-1).at(0)) * (adjacent_vec.at(index).at(0) - adjacent_vec.at(index-1).at(0)) + (adjacent_vec.at(index).at(1) - adjacent_vec.at(index-1).at(1)) * (adjacent_vec.at(index).at(1) - adjacent_vec.at(index-1).at(1));
+
+    // AD<double> current_smooth_cost = (adjacent_vec.at(index).at(0) - adjacent_vec.at(index-1).at(0)) * (adjacent_vec.at(index).at(0) - adjacent_vec.at(index-1).at(0)) + (adjacent_vec.at(index).at(1) - adjacent_vec.at(index-1).at(1)) * (adjacent_vec.at(index).at(1) - adjacent_vec.at(index-1).at(1));
+    AD<double> current_smooth_cost = (adjacent_theta.at(index) - adjacent_theta.at(index - 1)) * (adjacent_theta.at(index) - adjacent_theta.at(index - 1));
     std::cout<<"current smooth cost "<<current_smooth_cost<<std::endl;
     smooth_cost += current_smooth_cost;         
     std::cout<<"For key point "<<index<<", theta "<<adjacent_theta.at(index)<<std::endl;
     for(const KeyPoint& obs_p : this->obs_key_points.at(index - 1)){
-      std::cout<<"  Obs information: "<<std::endl;
-      std::cout<<"    left "<<obs_p.left_most.first<<", "<<obs_p.left_most.second;
-      std::cout<<"  right "<<obs_p.right_most.first<<", "<<obs_p.right_most.second;
-      std::cout<<"  front "<<obs_p.fore_most.first<<", "<<obs_p.fore_most.second;
-      std::cout<<"  back "<<obs_p.rear_most.first<<", "<<obs_p.rear_most.second<<std::endl;
-      AD<double> left_y = -CppAD::sin(adjacent_theta.at(index)) * (obs_p.left_most.first - x[index]) + CppAD::cos(adjacent_theta.at(index)) * (obs_p.left_most.second - x[index + N]);
-      AD<double> right_y = -CppAD::sin(adjacent_theta.at(index)) * (obs_p.right_most.first - x[index]) + CppAD::cos(adjacent_theta.at(index)) * (obs_p.right_most.second - x[index + N]);
-      AD<double> fore_x = CppAD::cos(adjacent_theta.at(index)) * (obs_p.fore_most.first - x[index]) + CppAD::sin(adjacent_theta.at(index)) * (obs_p.fore_most.second - x[index + N]);
-      AD<double> rear_x = CppAD::cos(adjacent_theta.at(index)) * (obs_p.rear_most.first - x[index]) + CppAD::sin(adjacent_theta.at(index)) * (obs_p.rear_most.second - x[index + N]);
+      // std::cout<<"  Obs information: "<<std::endl;
+      // std::cout<<"    left "<<obs_p.left_most.first<<", "<<obs_p.left_most.second;
+      // std::cout<<"  right "<<obs_p.right_most.first<<", "<<obs_p.right_most.second;
+      // std::cout<<"  front "<<obs_p.fore_most.first<<", "<<obs_p.fore_most.second;
+      // std::cout<<"  back "<<obs_p.rear_most.first<<", "<<obs_p.rear_most.second<<std::endl;
+      // AD<double> left_y = -CppAD::sin(adjacent_theta.at(index)) * (obs_p.left_most.first - x[index]) + CppAD::cos(adjacent_theta.at(index)) * (obs_p.left_most.second - x[index + N]);
+      // AD<double> right_y = -CppAD::sin(adjacent_theta.at(index)) * (obs_p.right_most.first - x[index]) + CppAD::cos(adjacent_theta.at(index)) * (obs_p.right_most.second - x[index + N]);
+      // AD<double> fore_x = CppAD::cos(adjacent_theta.at(index)) * (obs_p.fore_most.first - x[index]) + CppAD::sin(adjacent_theta.at(index)) * (obs_p.fore_most.second - x[index + N]);
+      // AD<double> rear_x = CppAD::cos(adjacent_theta.at(index)) * (obs_p.rear_most.first - x[index]) + CppAD::sin(adjacent_theta.at(index)) * (obs_p.rear_most.second - x[index + N]);
+      
+      AD<double> left_y = -CppAD::sin(theta.at(index)) * (obs_p.left_most.first - x[index]) + CppAD::cos(theta.at(index)) * (obs_p.left_most.second - x[index + N]);
+      AD<double> right_y = -CppAD::sin(theta.at(index)) * (obs_p.right_most.first - x[index]) + CppAD::cos(theta.at(index)) * (obs_p.right_most.second - x[index + N]);
+      AD<double> fore_x = CppAD::cos(theta.at(index)) * (obs_p.fore_most.first - x[index]) + CppAD::sin(theta.at(index)) * (obs_p.fore_most.second - x[index + N]);
+      AD<double> rear_x = CppAD::cos(theta.at(index)) * (obs_p.rear_most.first - x[index]) + CppAD::sin(theta.at(index)) * (obs_p.rear_most.second - x[index + N]);
+      
       std::cout<<"  left_y "<<left_y<<", right_y "<<right_y<<", fore_x "<<fore_x<<", rear_x "<<rear_x<<std::endl;
-      AD<double> ellipse_distance = (left_y + right_y) * (left_y + right_y) / ((left_y - right_y + 2 * lateral_threshold) * (left_y - right_y + 2 * lateral_threshold)) + (fore_x + rear_x) * (fore_x + rear_x) / ((fore_x - rear_x + 2 * longitude_threshold) * (fore_x - rear_x + 2 * longitude_threshold)) - 2.0;
+      AD<double> ellipse_distance = (left_y + right_y) * (left_y + right_y) / ((left_y - right_y + 2 * lateral_threshold) * (left_y - right_y + 2 * lateral_threshold)) + (fore_x + rear_x) * (fore_x + rear_x) / ((fore_x - rear_x + 2 * longitude_threshold) * (fore_x - rear_x + 2 * longitude_threshold)) - 1.5;
       std::cout<<"  current ellipse_distance "<<ellipse_distance<<std::endl;
         // obs_cost += 1 / (1 + CppAD::exp(ellipse_distance * sigmoid_scale));
       obs_cost += CppAD::exp(-ellipse_distance * sigmoid_scale);
         // obs_cost = ellipse_distance;
     }
   }
-  AD<double> current_smooth_cost = (adjacent_theta.front() - this->start_heading) * (adjacent_theta.front() - this->start_heading) / (distance.front() * distance.front());
-  smooth_cost += current_smooth_cost * 1e+6;
+  AD<double> current_smooth_cost = (adjacent_theta.front() - this->start_heading) * (adjacent_theta.front() - this->start_heading);
+  smooth_cost += current_smooth_cost * 10;
   std::cout<<"current smooth cost "<<current_smooth_cost<<std::endl;
-  current_smooth_cost = (adjacent_theta.back() - this->end_heading) * (adjacent_theta.back() - this->end_heading) / (distance.back() * distance.back());
-  smooth_cost += current_smooth_cost * 1e+6;
+  current_smooth_cost = (adjacent_theta.back() - this->end_heading) * (adjacent_theta.back() - this->end_heading);
+  smooth_cost += current_smooth_cost * 10;
   // std::cout<<"last theta "<<adjacent_theta.back()<<", last distance "<<distance.back()<<std::endl;
   std::cout<<"current smooth cost "<<current_smooth_cost<<std::endl;
 
+  std::cout<<"smooth cost "<<smooth_cost<<", obs cost "<<obs_cost<<std::endl;
 
 
     fg[0] = smooth_weight * smooth_cost + obs_weight * obs_cost;
@@ -354,51 +410,51 @@ void FG_eval::refreshObsKey(){//when x, y, theta are refreshed, refresh obs key 
   this->obs_key_points.clear();
   this->obs_key_points.resize(n - 2);
   for(int i = 1; i < n - 1; i++){//for each way points
-      double relative_x;
-      double relative_y;
-      double MIN_X = 50;//TODO: extract params 
-      double MAX_X = -50;
-      double MIN_Y = 50;
-      double MAX_Y = -50;
-      int obs_size = this->opt_->obs_.size();
-      
-      std::cout<<"*********"<<i<< "th point, theta "<<this->key_theta.at(i)<<std::endl;
-      for(int j = 0; j < obs_size; j++){//for each obstacle in this freesapce
-      std::cout<<"for this obs"<<std::endl;
-        MIN_X = 50;//TODO: extract params 
-        MAX_X = -50;
-        MIN_Y = 50;
-        MAX_Y = -50;
-        // std::cout<<"  For this obstacle : "<<std::endl;
-        KeyPoint kp;
-        for(const std::pair<double, double>& p : this->opt_->obs_.at(j)){
-          std::cout<<"  obs point in world "<<p.first<<", "<<p.second;
-          relative_x = cos(this->key_theta.at(i)) * (p.first - this->key_x.at(i)) + sin(this->key_theta.at(i)) * (p.second - this->key_y.at(i));
-          relative_y = -sin(this->key_theta.at(i)) * (p.first - this->key_x.at(i)) + cos(this->key_theta.at(i)) * (p.second - this->key_y.at(i));
-          std::cout<<"  in relative frame "<<relative_x<<", "<<relative_y<<std::endl;
-          if(relative_x > MAX_X){
-              kp.fore_most = p;
-              MAX_X = relative_x;
-          }
-          if(relative_x < MIN_X){
-              kp.rear_most = p;
-              MIN_X = relative_x;
-          }
-          if(relative_y > MAX_Y){
-              kp.left_most = p;
-              MAX_Y = relative_y;
-          }
-          if(relative_y < MIN_Y){
-              kp.right_most = p;
-              MIN_Y = relative_y;
-          }
+    double relative_x;
+    double relative_y;
+    double MIN_X = 50;//TODO: extract params 
+    double MAX_X = -50;
+    double MIN_Y = 50;
+    double MAX_Y = -50;
+    int obs_size = this->opt_->obs_.size();
+    
+    std::cout<<"*********"<<i<< "th point, theta "<<this->key_theta.at(i)<<std::endl;
+    for(int j = 0; j < obs_size; j++){//for each obstacle in this freesapce
+    std::cout<<"for this obs"<<std::endl;
+      MIN_X = 50;//TODO: extract params 
+      MAX_X = -50;
+      MIN_Y = 50;
+      MAX_Y = -50;
+      // std::cout<<"  For this obstacle : "<<std::endl;
+      KeyPoint kp;
+      for(const std::pair<double, double>& p : this->opt_->obs_.at(j)){
+        std::cout<<"  obs point in world "<<p.first<<", "<<p.second;
+        relative_x = cos(this->key_theta.at(i)) * (p.first - this->key_x.at(i)) + sin(this->key_theta.at(i)) * (p.second - this->key_y.at(i));
+        relative_y = -sin(this->key_theta.at(i)) * (p.first - this->key_x.at(i)) + cos(this->key_theta.at(i)) * (p.second - this->key_y.at(i));
+        std::cout<<"  in relative frame "<<relative_x<<", "<<relative_y<<std::endl;
+        if(relative_x > MAX_X){
+            kp.fore_most = p;
+            MAX_X = relative_x;
         }
-
-        if(std::pow((MIN_X + MAX_X) / (MAX_X - MIN_X + 6) , 2) < 1 && std::pow((MIN_Y + MAX_Y) / (MAX_Y - MIN_Y + 6), 2) < 1){
-          this->obs_key_points.at(i - 1).push_back(kp);
+        if(relative_x < MIN_X){
+            kp.rear_most = p;
+            MIN_X = relative_x;
         }
-
+        if(relative_y > MAX_Y){
+            kp.left_most = p;
+            MAX_Y = relative_y;
+        }
+        if(relative_y < MIN_Y){
+            kp.right_most = p;
+            MIN_Y = relative_y;
+        }
       }
+
+      if(std::pow((MIN_X + MAX_X) / (MAX_X - MIN_X + 6) , 2) < 1 && std::pow((MIN_Y + MAX_Y) / (MAX_Y - MIN_Y + 6), 2) < 1){
+        this->obs_key_points.at(i - 1).push_back(kp);
+      }
+
+    }
   }
 }
 
@@ -463,7 +519,7 @@ bool RefLineOPT::solve(CubicSpline& csp){
   auto t1 = std::chrono::steady_clock::now();
 
   int max_iter = 5;
-  int min_iter = 3;
+  int min_iter = 2;
   int iter_time = 0;
 
   bool ok = false;

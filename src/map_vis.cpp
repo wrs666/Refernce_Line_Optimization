@@ -157,8 +157,8 @@ MapVis::MapVis(const VecMap& vec_map, ros::NodeHandle nh){
       opti_ref_vis.action = visualization_msgs::Marker::ADD;
       opti_ref_vis.pose.orientation.w = 1.0;
       opti_ref_vis.type = visualization_msgs::Marker::POINTS;
-      opti_ref_vis.scale.x = 0.1;
-      opti_ref_vis.scale.y = 0.1;
+      opti_ref_vis.scale.x = 0.2;
+      opti_ref_vis.scale.y = 0.2;
 
       opti_ref_vis.color.r = 0.0f;
       opti_ref_vis.color.g = 1.0f;
