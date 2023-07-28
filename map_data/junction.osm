@@ -1,42 +1,27 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <osm version='0.6' generator='JOSM'>
   <bounds minlat='36.9033976' minlon='118.1656355' maxlat='36.904598' maxlon='118.1699645' origin='CGImap 0.7.5 (6487 thorn-03.openstreetmap.org)' />
-  <node id='-140724' action='modify' visible='true' lat='36.90409987658' lon='118.16632395593'>
+  <node id='-140724' action='modify' visible='true' lat='36.90391762162' lon='118.16750526942'>
     <tag k='junction' v='yes' />
   </node>
-  <node id='-140725' action='modify' visible='true' lat='36.90407965798' lon='118.16655905079'>
+  <node id='-140725' action='modify' visible='true' lat='36.90409514367' lon='118.16891869842'>
     <tag k='highway' v='junction_point' />
   </node>
-  <node id='-140726' action='modify' visible='true' lat='36.9040423541' lon='118.16694218558' />
-  <node id='-140727' action='modify' visible='true' lat='36.90390169125' lon='118.16630365671'>
+  <node id='-140726' action='modify' visible='true' lat='36.90410429691' lon='118.16975469487' />
+  <node id='-140727' action='modify' visible='true' lat='36.90370156761' lon='118.16625747674'>
     <tag k='highway' v='junction_point' />
   </node>
-  <node id='-140728' action='modify' visible='true' lat='36.90375212935' lon='118.1662878279' />
-  <node id='-140806' action='modify' visible='true' lat='36.90412235633' lon='118.16642895471' />
-  <node id='-140862' action='modify' visible='true' lat='36.90409343313' lon='118.16640727744' />
-  <node id='-140910' action='modify' visible='true' lat='36.90412703236' lon='118.16641219012' />
-  <node id='-140923' action='modify' visible='true' lat='36.90410306073' lon='118.16642830031' />
-  <node id='-140951' action='modify' visible='true' lat='36.90411654252' lon='118.16639441133' />
-  <node id='-141006' action='modify' visible='true' lat='36.90404818543' lon='118.16640935503' />
-  <node id='-141007' action='modify' visible='true' lat='36.90405286147' lon='118.16639259044' />
-  <node id='-141008' action='modify' visible='true' lat='36.90404237162' lon='118.16637481165' />
-  <node id='-141009' action='modify' visible='true' lat='36.90401926221' lon='118.16638767776' />
-  <node id='-141010' action='modify' visible='true' lat='36.90402888982' lon='118.16640870063' />
-  <node id='-141011' action='modify' visible='true' lat='36.90407141399' lon='118.16647117661' />
-  <node id='-141012' action='modify' visible='true' lat='36.90407609002' lon='118.16645441202' />
-  <node id='-141013' action='modify' visible='true' lat='36.90406560018' lon='118.16643663323' />
-  <node id='-141014' action='modify' visible='true' lat='36.90404249078' lon='118.16644949934' />
-  <node id='-141015' action='modify' visible='true' lat='36.90405211838' lon='118.1664705222' />
-  <node id='-141016' action='modify' visible='true' lat='36.90404461181' lon='118.16632518831' />
-  <node id='-141017' action='modify' visible='true' lat='36.90404928784' lon='118.16630842372' />
-  <node id='-141018' action='modify' visible='true' lat='36.90403879799' lon='118.16629064493' />
-  <node id='-141019' action='modify' visible='true' lat='36.90401568858' lon='118.16630351104' />
-  <node id='-141020' action='modify' visible='true' lat='36.90402531619' lon='118.1663245339' />
-  <node id='-141021' action='modify' visible='true' lat='36.90398683818' lon='118.16638552021' />
-  <node id='-141022' action='modify' visible='true' lat='36.90399151422' lon='118.16636875562' />
-  <node id='-141023' action='modify' visible='true' lat='36.90398102436' lon='118.16635097683' />
-  <node id='-141024' action='modify' visible='true' lat='36.90395791494' lon='118.16636384294' />
-  <node id='-141025' action='modify' visible='true' lat='36.90396754255' lon='118.1663848658' />
+  <node id='-140728' action='modify' visible='true' lat='36.90370686325' lon='118.16579176562' />
+  <node id='-141011' action='modify' visible='true' lat='36.90402019202' lon='118.16867738754' />
+  <node id='-141014' action='modify' visible='true' lat='36.90400198967' lon='118.16757271543' />
+  <node id='-141393' action='modify' visible='true' lat='36.90405108264' lon='118.16867646383' />
+  <node id='-141394' action='modify' visible='true' lat='36.90404129159' lon='118.16757566982' />
+  <node id='-141454' action='modify' visible='true' lat='36.9040921811' lon='118.16867050289' />
+  <node id='-141455' action='modify' visible='true' lat='36.90408239005' lon='118.16756970888' />
+  <node id='-141459' action='modify' visible='true' lat='36.90413744697' lon='118.16867348224' />
+  <node id='-141460' action='modify' visible='true' lat='36.90412765593' lon='118.16757268823' />
+  <node id='-141470' action='modify' visible='true' lat='36.90397425145' lon='118.16867348224' />
+  <node id='-141471' action='modify' visible='true' lat='36.90396446039' lon='118.16757268823' />
   <way id='-112912' action='modify' visible='true'>
     <nd ref='-140724' />
     <nd ref='-140725' />
@@ -57,49 +42,29 @@
     <nd ref='-140724' />
     <tag k='in_junction' v='yes' />
   </way>
-  <way id='-112934' action='modify' visible='true'>
-    <nd ref='-140806' />
-    <nd ref='-140910' />
-    <nd ref='-140951' />
-    <nd ref='-140862' />
-    <nd ref='-140923' />
-    <nd ref='-140806' />
-    <tag k='landuse' v='yes' />
-  </way>
-  <way id='-112990' action='modify' visible='true'>
-    <nd ref='-141006' />
-    <nd ref='-141007' />
-    <nd ref='-141008' />
-    <nd ref='-141009' />
-    <nd ref='-141010' />
-    <nd ref='-141006' />
-    <tag k='landuse' v='yes' />
-  </way>
-  <way id='-112991' action='modify' visible='true'>
-    <nd ref='-141011' />
-    <nd ref='-141012' />
-    <nd ref='-141013' />
+  <way id='-113047' action='modify' visible='true'>
     <nd ref='-141014' />
-    <nd ref='-141015' />
     <nd ref='-141011' />
     <tag k='landuse' v='yes' />
   </way>
-  <way id='-112992' action='modify' visible='true'>
-    <nd ref='-141016' />
-    <nd ref='-141017' />
-    <nd ref='-141018' />
-    <nd ref='-141019' />
-    <nd ref='-141020' />
-    <nd ref='-141016' />
+  <way id='-113210' action='modify' visible='true'>
+    <nd ref='-141393' />
+    <nd ref='-141394' />
     <tag k='landuse' v='yes' />
   </way>
-  <way id='-112993' action='modify' visible='true'>
-    <nd ref='-141021' />
-    <nd ref='-141022' />
-    <nd ref='-141023' />
-    <nd ref='-141024' />
-    <nd ref='-141025' />
-    <nd ref='-141021' />
+  <way id='-113263' action='modify' visible='true'>
+    <nd ref='-141454' />
+    <nd ref='-141455' />
+    <tag k='landuse' v='yes' />
+  </way>
+  <way id='-113267' action='modify' visible='true'>
+    <nd ref='-141459' />
+    <nd ref='-141460' />
+    <tag k='landuse' v='yes' />
+  </way>
+  <way id='-113276' action='modify' visible='true'>
+    <nd ref='-141470' />
+    <nd ref='-141471' />
     <tag k='landuse' v='yes' />
   </way>
 </osm>

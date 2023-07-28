@@ -2,16 +2,25 @@
 #include <cassert>
 #include <chrono>
 #include <array>
+#include <unordered_map>
+#include <unordered_set>
 
 const double lateral_threshold = 2;
 const double longitude_threshold = 4;//TODO: extract params
 
-const double smooth_weight = 1e+4; //cost value about 10
-const double obs_weight = 10;
+const double smooth_weight = 1e+3; //cost value about 10
+const double boundary_orientation_weight = 5e+3;
+const double obs_weight = 1;
+const double length_weight = 3e+2;
 const double deviation_weight = 10;
-const double sigmoid_scale = 20;
+const double sigmoid_scale = 10;
 
-double threshold_for_extraction = 0.5;
+const double threshold_for_extraction = 0.5;
+
+const double sampling_solve_offset = 40.0; 
+const double sampling_solve_interval = 0.5;
+const double sampling_distance_threshold = 1.8;
+const double distance_threshold_for_crossing = 1.5;
 
 static const std::string EnumStrings[] = {
   "not_defined",
@@ -30,6 +39,31 @@ static const std::string EnumStrings[] = {
   "internal_error",
   "unknown"
 };
+
+std::vector<int> combineIndex(std::vector<int> index1, std::vector<int> index2){
+  std::vector<int> combined_index;
+  combined_index.reserve(index1.size() + index2.size());
+  int p1 = 0, p2 = 0;
+  while(p1 < index1.size() && p2 < index2.size()){
+    if(index1.at(p1) > index2.at(p2)){
+      combined_index.push_back(index2.at(p2++));
+    }
+    else if(index1.at(p1) < index2.at(p2)){
+      combined_index.push_back(index1.at(p1++));
+    }
+    else{
+      combined_index.push_back(index1.at(p1++));
+      p2++;
+    }    
+  }
+  if(p2 < (int)index2.size()){
+    combined_index.insert(combined_index.end(), index2.begin() + p2, index2.end());
+  }
+  else if(p1 < (int)index1.size()){
+    combined_index.insert(combined_index.end(), index1.begin() + p1, index1.end());
+  }
+  return combined_index;
+}
 
 CubicSpline::CubicSpline(const std::vector<double>& x, const std::vector<double>& y){//toImprove : combine loop
   int n = x.size();
@@ -164,12 +198,12 @@ std::vector<TrackPoint> CubicSpline::sampling(double point_margin){
   //sampling
   int n = this->s.size();
   std::vector<TrackPoint> sampling_points = {};
-  double station = 0;
-  int segment_index = 0;
-  while(station < s.back()){
+  double station = this->s.at(1);
+  int segment_index = 1;
+  while(station < s.at(n - 2)){
     while(station > s.at(segment_index + 1)){      
       segment_index++;
-      if(segment_index == n - 1)
+      if(segment_index >= n - 2)
           break;
     }
     if(segment_index < n - 1){
@@ -191,6 +225,14 @@ std::vector<double> CubicSpline::getKinkHeading(){
   }
   heading.back() = atan2(b.back().at(1) + b.back().at(2) * s.back() * 2 + b.back().at(3) * s.back() * s.back() * 3, a.back().at(1) + a.back().at(2) * s.back() * 2 + a.back().at(3) * s.back() * s.back() * 3);
   return heading;
+}
+
+double CubicSpline::getKinkCurvature(int i){
+  double x1 = a.at(i).at(1) + a.at(i).at(2) * s.at(i) * 2 + a.at(i).at(3) * s.at(i) * s.at(i) * 3;
+  double x2 = a.at(i).at(2) * 2 + a.at(i).at(3) * s.at(i) * 6;
+  double y1 = b.at(i).at(1) + b.at(i).at(2) * s.at(i) * 2 + b.at(i).at(3) * s.at(i) * s.at(i) * 3;
+  double y2 = b.at(i).at(2) * 2 + b.at(i).at(3) * s.at(i) * 6;
+  return ((x1 * y2 - x2 * y1) / std::pow((x1 * x1 + y1 * y1), 1.5));
 }
 
 
@@ -216,6 +258,7 @@ FG_eval::FG_eval(RefLineOPT *opt){
   bool increasing = false;
   std::vector<KeyPoint> kps, last_kps;
   double distance, last_distance = 1000;
+  std::vector<int> last_active_obs_index;
 
   for(int i = 1; i < n - 1; i++){//for each way points
     double relative_x;
@@ -229,6 +272,7 @@ FG_eval::FG_eval(RefLineOPT *opt){
     selected = false;
     refresh = false;
     kps.clear();
+    std::vector<int> active_obs_index = {};
     // double theta;
     // std::cout<<"For this point : "<<std::endl;
     for(int j = 0; j < obs_size; j++){//for each obstacle in this freesapce
@@ -260,15 +304,20 @@ FG_eval::FG_eval(RefLineOPT *opt){
 
       distance = std::min(distance, std::pow((MIN_X + MAX_X) / (MAX_X - MIN_X + 3) , 2) + std::pow((MIN_Y + MAX_Y) / (MAX_Y - MIN_Y + 10), 2));
 
-      if(std::pow((MIN_X + MAX_X) / (MAX_X - MIN_X + 4) , 2) < 1 && std::pow((MIN_Y + MAX_Y) / (MAX_Y - MIN_Y + 4), 2) < 1){
+      if(std::pow((MIN_X + MAX_X) / (MAX_X - MIN_X + 4) , 2) < 1 && std::pow((MIN_Y + MAX_Y) / (MAX_Y - MIN_Y + 2), 2) < 1){
           selected = true;
           refresh = !last_selected;
       }
 
-       if(std::pow((MIN_X + MAX_X) / (MAX_X - MIN_X + 6) , 2) < 1 && std::pow((MIN_Y + MAX_Y) / (MAX_Y - MIN_Y + 6), 2) < 1){
+      if(std::pow((MIN_X + MAX_X) / (MAX_X - MIN_X + 6) , 2) < 1 && std::pow((MIN_Y + MAX_Y) / (MAX_Y - MIN_Y + 6), 2) < 1){
         kps.push_back(kp);
+        // active_obs_index.push_back(j);
       }
-        
+      
+      if(std::pow((MIN_X + MAX_X) / (MAX_X - MIN_X + 80) , 2) < 1 && std::pow((MIN_Y + MAX_Y) / (MAX_Y - MIN_Y + 80), 2) < 1){
+        // kps.push_back(kp);
+        active_obs_index.push_back(j);
+      }
         
     }
 
@@ -279,6 +328,7 @@ FG_eval::FG_eval(RefLineOPT *opt){
         key_y.push_back(opt->points_y.at(i));
         key_theta.push_back(opt->init_heading.at(i));
         this->obs_key_points.push_back(kps);
+        this->effective_obs_index.push_back(active_obs_index);
         std::cout<<i<<"th point added to key points "<<std::endl;
       }
       else{
@@ -287,6 +337,7 @@ FG_eval::FG_eval(RefLineOPT *opt){
           key_y.push_back(opt->points_y.at(i - 1));
           key_theta.push_back(opt->init_heading.at(i - 1));
           this->obs_key_points.push_back(last_kps);
+          this->effective_obs_index.push_back(last_active_obs_index);
           std::cout<<i - 1<<"th point added to key points "<<std::endl;
         }
         else if(!increasing && distance > last_distance){//insert minimum
@@ -294,6 +345,7 @@ FG_eval::FG_eval(RefLineOPT *opt){
           key_y.push_back(opt->points_y.at(i - 1));
           key_theta.push_back(opt->init_heading.at(i - 1));
           this->obs_key_points.push_back(last_kps);
+          this->effective_obs_index.push_back(last_active_obs_index);
           std::cout<<i - 1<<"th point added to key points "<<std::endl;
         }
       }
@@ -303,6 +355,7 @@ FG_eval::FG_eval(RefLineOPT *opt){
       key_y.push_back(opt->points_y.at(i - 1));
       key_theta.push_back(opt->init_heading.at(i - 1));
       this->obs_key_points.push_back(last_kps);
+      this->effective_obs_index.push_back(last_active_obs_index);
       std::cout<<i - 1<<"th point added to key points "<<std::endl;
     }
 
@@ -311,6 +364,7 @@ FG_eval::FG_eval(RefLineOPT *opt){
     last_distance = distance;
     last_kps = kps;
     last_selected = selected;
+    last_active_obs_index = active_obs_index;
   }
   key_x.push_back(opt->points_x.back());
   key_y.push_back(opt->points_y.back());
@@ -403,6 +457,280 @@ void FG_eval::operator()(ADvector& fg, const ADvector& x)
     // fg[3] = x[N-1];
     // fg[4] = x[2*N-1];
     return;
+}
+
+inline double distToObstacle(double px, double py, Obstacle obs){
+  int n = obs.size();
+  double d = 100;
+  // std::cout<<"^-^ in functoin distToObstacle(), sampling point x "<<px<<" y "<<py<<std::endl;
+
+  for(int i = 0, j = 1; i < n - 1; i = j++){
+    std::cout<<"           obs 1 x "<<obs.at(i).first<<", y "<<obs.at(i).second<<" ; 2 x "<<obs.at(i + 1).first<<", y "<<obs.at(i + 1).second<<std::endl;
+    std::pair<double, double> ip(px - obs.at(i).first, py - obs.at(i).second);
+    std::pair<double, double> ij(obs.at(j).first - obs.at(i).first, obs.at(j).second - obs.at(i).second);
+    std::pair<double, double> pj(obs.at(j).first - px, obs.at(j).second - py);
+    double r = (ip.first * ij.first + ip.second * ij.second) / (ij.first * ij.first + ij.second * ij.second);//point to line
+    std::cout<<"           r "<<r<<std::endl;
+    double current_d;
+    if(r < 0)
+      current_d = sqrt(ip.first * ip.first + ip.second * ip.second);
+    else if(r > 1){
+      current_d = sqrt(pj.first * pj.first + pj.second * pj.second);
+    }
+    else{
+      current_d = fabs((obs.at(j).second - obs.at(i).second) * px + (obs.at(i).first - obs.at(j).first) * py + obs.at(j).first * obs.at(i).second - obs.at(i).first * obs.at(j).second) / 
+          sqrt((obs.at(j).second - obs.at(i).second) * (obs.at(j).second - obs.at(i).second) + (obs.at(i).first - obs.at(j).first) * (obs.at(i).first - obs.at(j).first));
+    }
+    std::cout<<"           current distance "<<current_d<<std::endl;
+    d = std::min(d, current_d);
+  }
+      
+  // std::cout<<"    distance "<<d<<std::endl;
+  return d;
+}
+
+// inline bool isRepelling(double max_x, double min_x, double max_y, double min_y, std::pair<double, double> p1, std::pair<double, double> p2){
+//   bool on_left = p1.first < min_x && p2.first < min_x;
+//   bool on_right = p1.first > max_x && p2.first > max_x;
+//   bool above = p1.second > max_y && p2.second > max_y;
+//   bool below = p1.second < min_y && p2.second < min_y;
+//   return on_left || on_right || above || below;
+// }
+
+inline bool isCross(double p1_x, double p1_y, double p2_x, double p2_y, Obstacle obs){
+  int n = obs.size();
+  bool cross = false;
+
+  double max_x = std::max(p1_x, p2_x) + 1.5;
+  double min_x = std::min(p1_x, p2_x) - 1.5;
+  double max_y = std::max(p1_y, p2_y) + 1.5;
+  double min_y = std::min(p1_y, p2_y) - 1.5;
+
+  std::pair<double, double> v(p2_x - p1_x, p2_y - p1_y);
+
+  for(int i = 0; i < n - 1; i++){
+
+    bool on_left = obs.at(i).first < min_x && obs.at(i + 1).first < min_x;
+    bool on_right = obs.at(i).first > max_x && obs.at(i + 1).first > max_x;
+    bool above = obs.at(i).second > max_y && obs.at(i + 1).second > max_y;
+    bool below = obs.at(i).second < min_y && obs.at(i + 1).second < min_y;
+    if(on_left || on_right || above || below)
+      continue;
+
+    std::pair<double, double> v1i(obs.at(i).first - p1_x, obs.at(i).second - p1_y);
+    std::pair<double, double> v1j(obs.at(i + 1).first - p1_x, obs.at(i + 1).second - p1_y);
+    std::pair<double, double> vij(obs.at(i + 1).first - obs.at(i).first, obs.at(i + 1).second - obs.at(i).second);
+    std::pair<double, double> vi1(p1_x - obs.at(i).first, p1_y - obs.at(i).second);
+    std::pair<double, double> vi2(p2_x - obs.at(i).first, p2_y - obs.at(i).second);
+    double m1iv = v1i.first * v.second - v.first * v1i.second;
+    double m1jv = v1j.first * v.second - v.first * v1j.second;
+    double mi1ij = vi1.first * vij.second - vij.first * vi1.second;
+    double mi2ij = vi2.first * vij.second - vij.first * vi2.second;
+    if(m1iv * m1jv <= 0 && mi1ij * mi2ij <= 0){
+      cross = true;
+      break;
+    }
+    else{
+      double p2line = fabs((p2_y - p1_y) * obs.at(i).first + (p1_x - p2_x) * obs.at(i).second + p2_x * p1_y - p1_x * p2_y) / sqrt((p2_y - p1_y) * (p2_y - p1_y) + (p1_x - p2_x) * (p1_x - p2_x));
+      // if(fabs((p2_y - p1_y) * obs.at(i).first + (p1_x - p2_x) * obs.at(i).second + p2_x * p1_y - p1_x * p2_y) / sqrt((p2_y - p1_y) * (p2_y - p1_y) + (p1_x - p2_x) * (p1_x - p2_x)) < distance_threshold_for_crossing){
+      // std::cout<<"    obs point x "<<obs.at(i).first<<", y "<<obs.at(i).second<<".  distance from point to line "<<p2line<<std::endl;
+      if(p2line < distance_threshold_for_crossing){
+        cross = true;
+        break;
+      }
+    }
+  }
+  if(!cross){
+    // cross = fabs((p2_y - p1_y) * obs.back().first + (p1_x - p2_x) * obs.back().second + p2_x * p1_y - p1_x * p2_y) / sqrt((p2_y - p1_y) * (p2_y - p1_y) + (p1_x - p2_x) * (p1_x - p2_x)) < distance_threshold_for_crossing;
+    double p2line = fabs((p2_y - p1_y) * obs.back().first + (p1_x - p2_x) * obs.back().second + p2_x * p1_y - p1_x * p2_y) / sqrt((p2_y - p1_y) * (p2_y - p1_y) + (p1_x - p2_x) * (p1_x - p2_x));
+      // if(fabs((p2_y - p1_y) * obs.at(i).first + (p1_x - p2_x) * obs.at(i).second + p2_x * p1_y - p1_x * p2_y) / sqrt((p2_y - p1_y) * (p2_y - p1_y) + (p1_x - p2_x) * (p1_x - p2_x)) < distance_threshold_for_crossing){
+    // std::cout<<"    obs back point x "<<obs.back().first<<", y "<<obs.back().second<<".  distance from point to line "<<p2line<<std::endl;
+      if(p2line < distance_threshold_for_crossing){
+        cross = true;
+      }
+  }
+  return cross;
+}
+
+void FG_eval::samplingSolve(double max_offset, double sampling_interval, CubicSpline& csp){
+  std::cout<<"************Implementing Sampling Solving***********"<<std::endl;
+  auto t1 = std::chrono::steady_clock::now();
+
+  int m = 2 * (max_offset / sampling_interval) + 1;
+  int n = this->key_x.size();
+  // std::cout<<"Number of sampling states per layer "<<m<<". Key points size "<<n<<std::endl;
+  std::vector<std::vector<double>> dp(n, std::vector<double>(m, 0));
+  std::vector<std::unordered_map<double, double>> link(n);
+  std::vector<double> last_heading(m), current_heading(m);
+  std::vector<std::unordered_set<int>> black_lists(n);
+  std::vector<std::vector<double>> cumulative_length(n, std::vector<double>(m, DBL_MAX));
+
+  //state trandsistion from n-2 to 1, leave alone n-1 and 0
+  //index : n - 2
+  // double d;//lateral movement distance of key point in current level
+  // double last_d;//lateral movement distance of key point in last level
+  // double moved_x, moved_y, last_x, last_y;//coordinates of points in this level and last level
+  // double section_theta;//heading connecting current level to the last level
+  for(int i = 0; i < m; i++){//toFix : improve the efficiency
+    double d = -max_offset + i * sampling_interval;
+    double moved_x = key_x.at(n - 2) + d * cos(key_theta.at(n - 2) - M_PI / 2);
+    double moved_y = key_y.at(n - 2) + d * sin(key_theta.at(n - 2) - M_PI / 2);
+    double section_theta = atan2(key_y.back() - moved_y, key_x.back() - moved_x);
+    last_heading.at(i) = section_theta;
+    double min_ob_distance = 100;
+    for(int ob_index : effective_obs_index.back()){
+      // std::cout<<"For the end point, offset "<<d<<std::endl;
+      if(isCross(moved_x, moved_y, key_x.back(), key_y.back(), this->opt_->obs_.at(ob_index))){
+        min_ob_distance = 0;
+        black_lists.at(n - 2).insert(i);
+        // std::cout<<"CROSS! offset "<<d<<std::endl;
+        break;
+      }
+      else{
+        // double dist = distToObstacle(moved_x, moved_y, this->opt_->obs_.at(ob_index));
+        // std::cout<<"For the end point, offset "<<d<<", distance to obstacle "<<dist<<std::endl;
+        min_ob_distance = std::min(min_ob_distance, distToObstacle(moved_x, moved_y, this->opt_->obs_.at(ob_index)));
+      }
+
+    }
+    double smooth_cost = boundary_orientation_weight * (section_theta - end_heading) * (section_theta - end_heading);
+    // std::cout<<"smoooth cost "<<smooth_cost<<std::endl;
+    double obs_cost = obs_weight * exp((sampling_distance_threshold - min_ob_distance) * sigmoid_scale);
+    // std::cout<<"obs cost "<<obs_cost<<std::endl;
+    double length_cost = length_weight * sqrt((key_x.back() - moved_x) * (key_x.back() - moved_x) + (key_y.back() - moved_y) * (key_y.back() - moved_y));
+    // std::cout<<"length cost "<<length_cost<<std::endl;
+    dp.at(n - 2).at(i) = smooth_cost + obs_cost + length_cost;
+  }
+
+  //index : n-3 to 1
+  for(int i = n - 3; i > 0; i--){//toFix : improve the efficiency
+    std::cout<<"Sampling "<<i<<"th point"<<std::endl;
+    const std::vector<int>& active_obs_index = effective_obs_index.at(i - 1);
+    std::vector<int> section_obs_index = combineIndex(effective_obs_index.at(i - 1), effective_obs_index.at(i));
+    for(int j = 0; j < m; j++){//for the current level
+      double d = -max_offset + j * sampling_interval;
+      double moved_x = key_x.at(i) + d * cos(key_theta.at(i) - M_PI / 2);
+      double moved_y = key_y.at(i) + d * sin(key_theta.at(i) - M_PI / 2);
+      std::cout<<"  offset "<<d<<std::endl;
+
+      //get obs cost
+      double min_ob_distance = 100, ob_distacne;
+      for(int ob_index : active_obs_index){
+        min_ob_distance = std::min(min_ob_distance, distToObstacle(moved_x, moved_y, this->opt_->obs_.at(ob_index)));
+        if(min_ob_distance == 0)
+          break;
+      }
+      std::cout<<"    min distance to ob "<<min_ob_distance<<std::endl;
+
+      //for each states in the last level
+      double min_cost = DBL_MAX;
+      for(int last_j = 0; last_j < m; last_j++){
+        if(black_lists.at(i + 1).count(last_j))
+          continue;
+        double last_d = -max_offset + last_j * sampling_interval;
+        double last_x =  key_x.at(i + 1) + last_d * cos(key_theta.at(i + 1) - M_PI / 2);
+        double last_y =  key_y.at(i + 1) + last_d * sin(key_theta.at(i + 1) - M_PI / 2);
+        // std::cout<<"    last level offset "<<last_d<<std::endl;
+        bool cross = false;
+        for(int soi : section_obs_index){
+          if(isCross(moved_x, moved_y, last_x, last_y, this->opt_->obs_.at(soi))){//Collision occurs between two Point Connection and Obstacle
+            cross = true;
+            break;
+            // std::cout<<"    CROSS! last level offset "<<last_d<<std::endl;
+          }
+        }
+        if(cross)
+          continue;
+
+        //get length cost
+        double current_length_cost = length_weight * sqrt((last_x - moved_x) * (last_x - moved_x) + (last_y - moved_y) * (last_y - moved_y));
+        // std::cout<<"    current length cost "<<current_length_cost<<std::endl;
+        //get smooth cost
+        double section_theta = atan2(last_y - moved_y, last_x - moved_x);
+        double current_cost = current_length_cost + smooth_weight * (last_heading.at(last_j) - section_theta) * (last_heading.at(last_j) - section_theta);
+        if(current_cost + dp.at(i + 1).at(last_j) < min_cost){
+          current_heading.at(j) = section_theta;
+          link.at(i)[d] = last_d;
+          min_cost = current_cost + dp.at(i + 1).at(last_j);
+        }
+      }
+      // if(link.at(i).count(d))
+        // std::cout<<"    optimal offset of last level "<<link.at(i).at(d)<<std::endl;
+      if(link.at(i).count(d) == 0){
+        // std::cout<<"    No feasible path "<<std::endl;
+        black_lists.at(i).insert(j);
+        // std::cout<<i<<" level, "<<j<<" state is put into black list"<<std::endl;
+      }
+        
+
+      //refresh dp array
+      dp.at(i).at(j) = min_cost + obs_weight * exp((sampling_distance_threshold - min_ob_distance) * sigmoid_scale);
+    }
+    last_heading = current_heading;
+  }
+
+  //index 1
+  double min_cost = DBL_MAX;
+  for(int j = 0; j < m; j++){//toFix : improve the efficiency
+    if(black_lists.at(1).count(j))
+      continue;
+    double d = -max_offset + j * sampling_interval;
+    double moved_x = key_x.at(1) + d * cos(key_theta.at(1) - M_PI / 2);
+    double moved_y = key_y.at(1) + d * sin(key_theta.at(1) - M_PI / 2);
+
+    bool cross = false;
+    for(int soi : effective_obs_index.front()){
+      if(isCross(key_x.front(), key_y.front(), moved_x, moved_y, this->opt_->obs_.at(soi))){//Collision occurs between two Point Connection and Obstacle
+        cross = true;
+        break;
+        // std::cout<<"CROSS! last level offset "<<d<<std::endl;
+      }
+
+    }
+    if(cross)
+      continue;
+
+    //get length cost
+    double current_length_cost = length_weight * sqrt((moved_x - key_x.front()) * (moved_x - key_x.front()) + (moved_y - key_y.front()) * (moved_y - key_y.front()));
+    // std::cout<<"current length cost "<<current_length_cost<<std::endl;
+    //get smooth cost
+    double section_theta = atan2(moved_y - key_y.front(), moved_x - key_x.front());
+    double current_cost = current_length_cost + smooth_weight * (last_heading.at(j) - section_theta) * (last_heading.at(j) - section_theta);
+    current_cost += boundary_orientation_weight * (section_theta - start_heading) * (section_theta - start_heading);
+    if(current_cost + dp.at(1).at(j) < min_cost){
+      link.at(0)[0] = d;
+      min_cost = current_cost + dp.at(1).at(j);
+    }
+  }
+
+  
+  std::cout<<"Final cost "<<min_cost<<std::endl;
+
+  auto t2 = std::chrono::steady_clock::now();
+  double dr_ms=std::chrono::duration<double,std::milli>(t2-t1).count();
+  std::cout<<"Time consumption of sampling optimization: "<<dr_ms<<"ms."<<std::endl;
+
+  //backtrack to fiil key_x and key_y
+  double last_d = 0;
+  for(int i = 1; i < n - 1; i++){
+    if(link.at(i-1).count(last_d)){
+      double d = link.at(i - 1).at(last_d);//i-1 is the index of previous point
+      key_x.at(i) = key_x.at(i) + d * cos(key_theta.at(i) - M_PI / 2);
+      key_y.at(i) = key_y.at(i) + d * sin(key_theta.at(i) - M_PI / 2);
+      last_d = d;      
+    }
+    else{
+      std::cout<<"Solutioan Failed, level "<<(i - 1)<<std::endl;
+    }
+
+  }
+
+  //cubic interploration
+  auto t3 = std::chrono::steady_clock::now();
+  csp = CubicSpline(key_x, key_y);
+  auto t4 = std::chrono::steady_clock::now();
+  dr_ms=std::chrono::duration<double,std::milli>(t4-t3).count();
+  std::cout<<"Time consumption of cubic interploration: "<<dr_ms<<"ms."<<std::endl;
 }
 
 void FG_eval::refreshObsKey(){//when x, y, theta are refreshed, refresh obs key points
@@ -512,6 +840,11 @@ RefLineOPT::RefLineOPT(const std::vector<TrackPoint>& track_points, const std::v
 
   obstacleFilter(obs);
   fg_eval = FG_eval(this); 
+}
+
+bool RefLineOPT::ssolve(CubicSpline& csp){
+  this->fg_eval.samplingSolve(sampling_solve_offset, sampling_solve_interval, csp);
+  return true;
 }
 
 bool RefLineOPT::solve(CubicSpline& csp){

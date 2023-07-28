@@ -24,6 +24,7 @@ class CubicSpline{
     CubicSpline() {}
     CubicSpline(const std::vector<double>& x, const std::vector<double>& y);
     std::vector<double> getKinkHeading();
+    double getKinkCurvature(int index);
     std::vector<TrackPoint> sampling(double point_margin);
 };
 
@@ -37,12 +38,14 @@ class FG_eval {
     double start_heading;
     double end_heading;
     std::vector<std::vector<KeyPoint>> obs_key_points;
+    std::vector<std::vector<int>> effective_obs_index;
 
     typedef CPPAD_TESTVECTOR(AD<double>) ADvector;
     FG_eval(){}
     FG_eval(RefLineOPT *opt);
     void operator()(ADvector& fg, const ADvector& x);
     void refreshObsKey();
+    void samplingSolve(double max_offset, double sampling_interval, CubicSpline& csp);
   private:
     RefLineOPT* opt_;
 };
@@ -68,6 +71,7 @@ class RefLineOPT {
     RefLineOPT(const std::vector<TrackPoint>& track_points, const std::vector<Obstacle>& obs);
     void obstacleFilter(const std::vector<Obstacle>& obs);
     bool solve(CubicSpline& csp);
+    bool ssolve(CubicSpline& csp);
     void correctHeading();
     std::vector<Point> getPoints(){
       std::vector<Point> points;

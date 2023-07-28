@@ -2,7 +2,7 @@
 #include "ref_line_opt.h"
 #include <cmath>
 
-double sampling_interval = 2.0;
+double sampling_interval = 1.0;
 // double threshold_for_extraction = 0.5;
 double interploration_margin = 0.1;
 
@@ -228,12 +228,23 @@ void Junction::ref_lines_generation(const std::vector<Obstacle>& obs){
       RefLineOPT ref_line_opt(init_ref_line, obs);
       std::vector<Point> init_key_points = ref_line_opt.getKeyPoints();
       CubicSpline csp;
-      bool solved = ref_line_opt.solve(csp);
+      bool solved = ref_line_opt.ssolve(csp);
       std::vector<Point> optimized_key_points = ref_line_opt.getKeyPoints();
       // ref_line_opt.refreshKeyPoints(threshold_for_extraction);//extract key points
       this->initial_key_points.push_back(init_key_points);
       this->optimized_ref_keys.push_back(optimized_key_points);
       this->optimized_ref_lines.push_back(csp.sampling(interploration_margin));
+      std::vector<double> headings = csp.getKinkHeading();
+      int n = headings.size();
+
+      TrackPoint after_start(optimized_key_points.at(1).x_, optimized_key_points.at(1).y_, headings.at(1), csp.getKinkCurvature(1));
+      std::vector<TrackPoint> begin_ref_line = spline_interploration(start, after_start, interploration_margin);
+      this->optimized_ref_lines.back().insert(this->optimized_ref_lines.back().end(), begin_ref_line.begin(), begin_ref_line.end());
+
+      TrackPoint before_end(optimized_key_points.at(n - 2).x_, optimized_key_points.at(n - 2).y_, headings.at(n - 2), csp.getKinkCurvature(n - 2));
+      std::vector<TrackPoint> end_ref_line = spline_interploration(before_end, end, interploration_margin);
+      this->optimized_ref_lines.back().insert(this->optimized_ref_lines.back().end(), end_ref_line.begin(), end_ref_line.end());
+
       this->ref_lines.push_back(init_ref_line);
     }
   }
