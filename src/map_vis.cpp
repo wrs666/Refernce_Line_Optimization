@@ -74,7 +74,7 @@ MapVis::MapVis(const VecMap& vec_map, ros::NodeHandle nh){
   for(const Junction& junc : vec_map.junctions){
     //fill ref_lines_vis
     int ref_lines_num = 0;
-    for(const ref_line& r : junc.ref_lines){
+    for(const RefLine& r : junc.ref_lines){
       ref_lines_num++;
       nav_msgs::Path ref_path;
       ref_path.header.frame_id = "world";

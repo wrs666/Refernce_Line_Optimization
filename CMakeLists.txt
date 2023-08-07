@@ -85,11 +85,6 @@ target_link_libraries(curve_optimization_node
   ${catkin_LIBRARIES}
 )
 
-target_link_libraries(curve_optimization_node
-  m
-  ipopt
-)
-
 # add_executable(get_curve_client_node
 #   src/get_curve_client.cpp
 # )

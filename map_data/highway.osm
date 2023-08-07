@@ -1,0 +1,70 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<osm version='0.6' generator='JOSM'>
+  <bounds minlat='36.9033976' minlon='118.1656355' maxlat='36.904598' maxlon='118.1699645' origin='CGImap 0.7.5 (6487 thorn-03.openstreetmap.org)' />
+  <node id='-140724' action='modify' visible='true' lat='36.90391762162' lon='118.16750526942'>
+    <tag k='junction' v='yes' />
+  </node>
+  <node id='-140725' action='modify' visible='true' lat='36.90409514367' lon='118.16891869842'>
+    <tag k='highway' v='junction_point' />
+  </node>
+  <node id='-140726' action='modify' visible='true' lat='36.90410429691' lon='118.16975469487' />
+  <node id='-140727' action='modify' visible='true' lat='36.90370156761' lon='118.16625747674'>
+    <tag k='highway' v='junction_point' />
+  </node>
+  <node id='-140728' action='modify' visible='true' lat='36.90370686325' lon='118.16579176562' />
+  <node id='-141011' action='modify' visible='true' lat='36.90402019202' lon='118.16867738754' />
+  <node id='-141014' action='modify' visible='true' lat='36.90400198967' lon='118.16757271543' />
+  <node id='-141393' action='modify' visible='true' lat='36.90405108264' lon='118.16867646383' />
+  <node id='-141394' action='modify' visible='true' lat='36.90404129159' lon='118.16757566982' />
+  <node id='-141454' action='modify' visible='true' lat='36.9040921811' lon='118.16867050289' />
+  <node id='-141455' action='modify' visible='true' lat='36.90408239005' lon='118.16756970888' />
+  <node id='-141459' action='modify' visible='true' lat='36.90413744697' lon='118.16867348224' />
+  <node id='-141460' action='modify' visible='true' lat='36.90412765593' lon='118.16757268823' />
+  <node id='-141470' action='modify' visible='true' lat='36.90397425145' lon='118.16867348224' />
+  <node id='-141471' action='modify' visible='true' lat='36.90396446039' lon='118.16757268823' />
+  <way id='-112912' action='modify' visible='true'>
+    <nd ref='-140724' />
+    <nd ref='-140725' />
+    <tag k='in_junction' v='yes' />
+  </way>
+  <way id='-112913' action='modify' visible='true'>
+    <nd ref='-140725' />
+    <nd ref='-140726' />
+    <tag k='highway' v='residential' />
+  </way>
+  <way id='-112914' action='modify' visible='true'>
+    <nd ref='-140728' />
+    <nd ref='-140727' />
+    <tag k='highway' v='residential' />
+  </way>
+  <way id='-112915' action='modify' visible='true'>
+    <nd ref='-140727' />
+    <nd ref='-140724' />
+    <tag k='in_junction' v='yes' />
+  </way>
+  <way id='-113047' action='modify' visible='true'>
+    <nd ref='-141014' />
+    <nd ref='-141011' />
+    <tag k='landuse' v='yes' />
+  </way>
+  <way id='-113210' action='modify' visible='true'>
+    <nd ref='-141393' />
+    <nd ref='-141394' />
+    <tag k='landuse' v='yes' />
+  </way>
+  <way id='-113263' action='modify' visible='true'>
+    <nd ref='-141454' />
+    <nd ref='-141455' />
+    <tag k='landuse' v='yes' />
+  </way>
+  <way id='-113267' action='modify' visible='true'>
+    <nd ref='-141459' />
+    <nd ref='-141460' />
+    <tag k='landuse' v='yes' />
+  </way>
+  <way id='-113276' action='modify' visible='true'>
+    <nd ref='-141470' />
+    <nd ref='-141471' />
+    <tag k='landuse' v='yes' />
+  </way>
+</osm>

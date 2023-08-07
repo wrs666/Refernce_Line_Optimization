@@ -1,19 +1,9 @@
 #pragma once
 #include "base.h"
-#include <cppad/ipopt/solve.hpp>
+#include <memory>
 #include <Eigen/Core>
 #include <Eigen/Dense>
-
-using CppAD::AD;
-
-class RefLineOPT ;
-
-struct KeyPoint{
-  std::pair<double, double> left_most;
-  std::pair<double, double> right_most;
-  std::pair<double, double> fore_most;
-  std::pair<double, double> rear_most;
-};
+#include <chrono>
 
 class CubicSpline{
   private:
@@ -23,71 +13,52 @@ class CubicSpline{
   public:
     CubicSpline() {}
     CubicSpline(const std::vector<double>& x, const std::vector<double>& y);
-    std::vector<double> getKinkHeading();
-    double getKinkCurvature(int index);
-    std::vector<TrackPoint> sampling(double point_margin);
-};
-
-class FG_eval {
-  public:
-    std::vector<double> key_x;
-    std::vector<double> key_y;
-    std::vector<double> initial_key_x;
-    std::vector<double> initial_key_y;
-    std::vector<double> key_theta;
-    double start_heading;
-    double end_heading;
-    std::vector<std::vector<KeyPoint>> obs_key_points;
-    std::vector<std::vector<int>> effective_obs_index;
-
-    typedef CPPAD_TESTVECTOR(AD<double>) ADvector;
-    FG_eval(){}
-    FG_eval(RefLineOPT *opt);
-    void operator()(ADvector& fg, const ADvector& x);
-    void refreshObsKey();
-    void samplingSolve(double max_offset, double sampling_interval, CubicSpline& csp);
-  private:
-    RefLineOPT* opt_;
+    double getKinkHeading(int index){
+      return atan2(b.at(index).at(1) + b.at(index).at(2) * s.at(index) * 2 + b.at(index).at(3) * s.at(index) * s.at(index) * 3, 
+                   a.at(index).at(1) + a.at(index).at(2) * s.at(index) * 2 + a.at(index).at(3) * s.at(index) * s.at(index) * 3);
+    }
+    double getKinkCurvature(int index){
+      double x1 = a.at(index).at(1) + a.at(index).at(2) * s.at(index) * 2 + a.at(index).at(3) * s.at(index) * s.at(index) * 3;
+      double x2 = a.at(index).at(2) * 2 + a.at(index).at(3) * s.at(index) * 6;
+      double y1 = b.at(index).at(1) + b.at(index).at(2) * s.at(index) * 2 + b.at(index).at(3) * s.at(index) * s.at(index) * 3;
+      double y2 = b.at(index).at(2) * 2 + b.at(index).at(3) * s.at(index) * 6;
+      return ((x1 * y2 - x2 * y1) / std::pow((x1 * x1 + y1 * y1), 1.5));
+    }
+    std::shared_ptr<RefLine> sampling(int start_index, int end_index, double point_margin);
+    // std::vector<Point> samplingPoint(double point_margin);
 };
 
 
 class RefLineOPT {
   private:
-    std::vector<double> points_x;
-    std::vector<double> points_y;
-    std::vector<double> init_heading;
-
-    std::vector<double> key_points_x;
-    std::vector<double> key_points_y;
-
-    std::vector<Obstacle> obs_;
-    FG_eval fg_eval;
+    std::shared_ptr<RefLine> initial_path;
+    std::vector<Obstacle> obstacles;
+    std::vector<double> key_x;
+    std::vector<double> key_y;
+    std::vector<double> key_theta;
+    std::vector<int> key_index;
+    CubicSpline cubic_spline;
 
   public:
-    friend class FG_eval;
-
     RefLineOPT() {}
-    RefLineOPT(const std::vector<Point>& points, const std::vector<Obstacle>& obs);
-    RefLineOPT(const std::vector<TrackPoint>& track_points, const std::vector<Obstacle>& obs);
+    RefLineOPT(Pose start, Pose end, const std::vector<Obstacle>& obs);
     void obstacleFilter(const std::vector<Obstacle>& obs);
-    bool solve(CubicSpline& csp);
-    bool ssolve(CubicSpline& csp);
-    void correctHeading();
-    std::vector<Point> getPoints(){
-      std::vector<Point> points;
-      for(int i = 0; i < points_x.size(); i++){
-        points.emplace_back(points_x.at(i), points_y.at(i));      
-      }
-      return points;
-    }
-    void refreshKeyPoints(double dist_thre, std::vector<double>& key_x, std::vector<double>& key_y, const std::vector<double>& x, const std::vector<double>& y);
+    void extractKeyPoints();
+    bool samplingSolve();
+    std::shared_ptr<RefLine> getPoints();
+
+    //for visualization when testing
     std::vector<Point> getKeyPoints(){
-      std::vector<Point> points;
-      for(int i = 0; i < this->fg_eval.key_x.size(); i++){
-        points.emplace_back(this->fg_eval.key_x.at(i), this->fg_eval.key_y.at(i));      
+      std::vector<Point> key_points;
+      int key_point_num = key_x.size();
+      for(int i = 0; i < key_point_num; i++){
+        key_points.emplace_back(key_x.at(i), key_y.at(i));
       }
-      return points;
+      return key_points;
     }
-    // std::vector<TrackPoint> rawInterploration(double point_margin) const;
-    // std::vector<TrackPoint> keyInterploration(double point_margin) const;
+
+    std::vector<double> init_key_x;
+    std::vector<double> init_key_y;
 };
+
+std::shared_ptr<RefLine> quinticInterploration(Pose p1, Pose p2, double point_margin);

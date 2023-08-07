@@ -1,5 +1,4 @@
 #include "vec_map.h"
-#include "help.h"
 #include <geodesy/utm.h>
 
 void VecMap::resolve_points()

@@ -1,5 +1,4 @@
-#ifndef MAP_VIS_H
-#define MAP_VIS_H
+#pragma once
 
 #include "vec_map.h"
 #include <visualization_msgs/MarkerArray.h>
@@ -25,5 +24,3 @@ class MapVis {
     MapVis(const VecMap& map, ros::NodeHandle nh);
     void show();
 };
-
-#endif
